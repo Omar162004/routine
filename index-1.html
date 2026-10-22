@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Routine Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f6fb;color:#172033;font-family:system-ui,sans-serif}header{background:#2457d6;color:white;padding:24px 16px}main{max-width:900px;margin:18px auto;padding:0 12px}.card{background:white;padding:18px;border:1px solid #e1e7f0;border-radius:14px;margin-bottom:16px}h1,h2{margin-top:0}label{display:block;margin:12px 0 5px}input{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}button{padding:11px 14px;border:0;border-radius:9px;background:#2457d6;color:white;font:inherit;font-weight:600;margin:8px 6px 0 0}button.alt{background:#e8eefc;color:#183d9b}.status{background:#eef4ff;color:#2447a5;padding:10px;border-radius:9px;margin-top:12px;overflow-wrap:anywhere}.muted{color:#64748b;font-size:13px}.hidden{display:none}.tabs{display:flex;gap:6px;flex-wrap:wrap}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:9px;border-bottom:1px solid #e2e8f0;text-align:left;overflow-wrap:anywhere}.scroll{overflow:auto}
+</style></head>
+<body>
+<header><h1>📘 Routine Pro</h1><div>Class Routine • Attendance • Notes • Exams & Results</div></header>
+<main>
+<section class="card">
+<h2>Supabase সেটআপ</h2><p class="muted">Supabase Project URL এবং Publishable key দিন। কখনো Secret key (sb_secret_...) ব্যবহার করবেন না।</p>
+<label>Project URL</label><input id="url" placeholder="https://YOUR-PROJECT.supabase.co">
+<label>Publishable key</label><input id="key" placeholder="sb_publishable_...">
+<button id="connect">Save & Connect</button><button class="alt" id="clear">Clear settings</button><div class="status" id="connection">এখনও সংযোগ করা হয়নি।</div>
+</section>
+<section class="card" id="auth">
+<h2>লগইন / নতুন অ্যাকাউন্ট</h2><label>ইমেইল</label><input id="email" type="email" autocomplete="username" placeholder="you@example.com">
+<label>পাসওয়ার্ড</label><input id="password" type="password" autocomplete="current-password">
+<button id="login">লগইন</button><button class="alt" id="signup">নতুন অ্যাকাউন্ট</button><div class="status" id="authstatus">আগে Supabase সেটআপ করুন।</div>
+</section>
+<section class="hidden" id="app">
+<div class="card"><h2>ড্যাশবোর্ড</h2><div id="who" class="muted"></div><button id="logout">লগআউট</button><div class="status" id="appstatus">সংযুক্ত।</div></div>
+<div class="card"><div class="tabs" id="tabs">
+<button data-t="classes">রুটিন / ক্লাস</button><button class="alt" data-t="attendance">উপস্থিতি</button><button class="alt" data-t="notes">নোট</button><button class="alt" data-t="exams">পরীক্ষা</button><button class="alt" data-t="results">ফলাফল</button><button class="alt" data-t="messages">মেসেজ</button><button class="alt" data-t="profiles">প্রোফাইল</button></div>
+<h2 id="title">রুটিন / ক্লাস</h2><div id="tableStatus" class="muted">ডেটা লোড করুন।</div><div class="scroll" id="output"></div><button class="alt" id="reload">আবার লোড করুন</button></div>
+<div class="card"><h3>মনে রাখবেন</h3><p class="muted">এটি Supabase সংযোগ ও টেবিলের ডেটা দেখানোর স্টার্টার ফাইল। এটি এখনও রুটিন সম্পাদনা, উপস্থিতি যোগ, PDF আপলোড বা শিক্ষক/Admin অনুমতির পূর্ণ অ্যাপ নয়। এগুলো আপনার টেবিলের কলাম ও RLS policies অনুযায়ী পরের ধাপে যুক্ত করতে হবে।</p></div>
+</section></main>
+<script>
+(()=>{const $=id=>document.getElementById(id);let sb=null,active='classes';const names={classes:'রুটিন / ক্লাস',attendance:'উপস্থিতি',notes:'নোট',exams:'পরীক্ষা',results:'ফলাফল',messages:'মেসেজ',profiles:'প্রোফাইল'};
+function msg(id,s,bad=false){$(id).textContent=s;$(id).style.background=bad?'#fff0ef':'#eef4ff';$(id).style.color=bad?'#9f1d16':'#2447a5'}
+function connect(){let u=$('url').value.trim(),k=$('key').value.trim();if(!u||!k)return msg('connection','Project URL এবং Publishable key দিন।',true);if(!/^https:\/\/[\w.-]+$/.test(u))return msg('connection','Project URL সঠিক নয়।',true);if(k.startsWith('sb_secret_'))return msg('connection','Secret key ব্যবহার করবেন না। Publishable key দিন।',true);localStorage.setItem('rp_url',u);localStorage.setItem('rp_key',k);sb=window.supabase.createClient(u,k);msg('connection','Supabase client প্রস্তুত। এখন লগইন করুন।');sb.auth.getSession().then(({data,error})=>{if(error)msg('connection',error.message,true);else if(data.session)show(data.session.user)});}
+async function auth(signup){if(!sb){connect();if(!sb)return}let email=$('email').value.trim(),password=$('password').value;if(!email||!password)return msg('authstatus','ইমেইল ও পাসওয়ার্ড দিন।',true);msg('authstatus','অপেক্ষা করুন…');let r=signup?await sb.auth.signUp({email,password}):await sb.auth.signInWithPassword({email,password});if(r.error)return msg('authstatus',r.error.message,true);if(signup&&!r.data.session)return msg('authstatus','অ্যাকাউন্ট তৈরি হয়েছে। ইমেইল ভেরিফিকেশন করে লগইন করুন।');if(r.data.user)show(r.data.user)}
+function show(user){$('auth').classList.add('hidden');$('app').classList.remove('hidden');$('who').textContent=user.email||user.id;load(active)}
+async function load(t){if(!sb)return;active=t;$('title').textContent=names[t];$('tableStatus').textContent='ডেটা লোড হচ্ছে…';$('output').replaceChildren();document.querySelectorAll('[data-t]').forEach(b=>b.className=b.dataset.t===t?'':'alt');let {data,error}=await sb.from(t).select('*').limit(100);if(error){$('tableStatus').textContent='ডেটা লোড হয়নি: '+error.message+'। টেবিল ও RLS policy পরীক্ষা করুন।';return}if(!data.length){$('tableStatus').textContent='রেকর্ড নেই, অথবা RLS অনুযায়ী দেখার অনুমতি নেই।';return}let cols=[...new Set(data.flatMap(r=>Object.keys(r)))],table=document.createElement('table'),thead=document.createElement('tr');cols.forEach(c=>{let th=document.createElement('th');th.textContent=c;thead.append(th)});let head=document.createElement('thead');head.append(thead);table.append(head);let body=document.createElement('tbody');data.forEach(r=>{let tr=document.createElement('tr');cols.forEach(c=>{let td=document.createElement('td'),v=r[c];td.textContent=v==null?'—':typeof v==='object'?JSON.stringify(v):String(v);tr.append(td)});body.append(tr)});table.append(body);$('output').append(table);$('tableStatus').textContent=data.length+'টি রেকর্ড (সর্বোচ্চ ১০০টি)।'}
+$('connect').onclick=connect;$('clear').onclick=()=>{localStorage.removeItem('rp_url');localStorage.removeItem('rp_key');$('url').value='';$('key').value='';sb=null;msg('connection','সেটিংস মুছে ফেলা হয়েছে।')};$('login').onclick=()=>auth(false);$('signup').onclick=()=>auth(true);$('logout').onclick=async()=>{if(sb)await sb.auth.signOut();$('app').classList.add('hidden');$('auth').classList.remove('hidden');msg('authstatus','লগআউট হয়েছে।')};$('reload').onclick=()=>load(active);$('tabs').onclick=e=>{let b=e.target.closest('[data-t]');if(b)load(b.dataset.t)};
+$('url').value=localStorage.getItem('rp_url')||'';$('key').value=localStorage.getItem('rp_key')||'';if($('url').value&&$('key').value)connect();
+})();
+</script></body></html>
